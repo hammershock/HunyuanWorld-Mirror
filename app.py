@@ -33,7 +33,13 @@ import onnxruntime
 
 
 # Initialize model - this will be done on GPU when needed
-model = None
+# model = None
+from src.models.models.worldmirror import WorldMirror
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+device = torch.device(device)
+model = WorldMirror.from_pretrained("/temp/hanmo/models/HunyuanWorld-Mirror").to(device)
+
 
 # Global variable to store current terminal output
 current_terminal_output = ""
@@ -153,12 +159,22 @@ def run_model(
     pts3d_conf = depth_conf              # S H W
 
     # sky mask segmentation
-    if not os.path.exists("skyseg.onnx"):
-        print("Downloading skyseg.onnx...")
-        download_file_from_url(
-            "https://huggingface.co/JianyuanWang/skyseg/resolve/main/skyseg.onnx", "skyseg.onnx"
+    SKYSEG_PATH = "/temp/hanmo/models/HunyuanWorld-Mirror/skyseg.onnx"
+
+    # 若文件不存在，才尝试下载
+    if not os.path.exists(SKYSEG_PATH):
+        print("skyseg.onnx missing, downloading via HF API...")
+        from huggingface_hub import hf_hub_download
+        SKYSEG_PATH = hf_hub_download(
+            repo_id="JianyuanWang/skyseg",
+            filename="skyseg.onnx",
+            local_dir="/temp/hanmo/models/HunyuanWorld-Mirror",
+            local_dir_use_symlinks=False
         )
-    skyseg_session = onnxruntime.InferenceSession("skyseg.onnx")
+
+    # 加载 skyseg
+    skyseg_session = onnxruntime.InferenceSession(SKYSEG_PATH)
+
     sky_mask_list = []
     for i, img_path in enumerate([os.path.join(image_folder_path, path) for path in os.listdir(image_folder_path)]):
         sky_mask = segment_sky(img_path, skyseg_session)

@@ -8,3 +8,7 @@ skyseg.onnx
 logs/
 *.safetensors
 *.ckpt
+exports/
+.vscode
+input_images_*/
+output/
